@@ -1,33 +1,34 @@
 using System;
 using System.Collections.Generic;
+using TMPro;
 using Unity.VisualScripting;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.PlayerLoop;
 using UnityEngine.Serialization;
 using Object = UnityEngine.Object;
 
-public class Player : MonoBehaviour
+public partial class Player : MonoBehaviour
 {
     // components
     private Rigidbody2D _body;
+    
+    // this is the PlayerInput provided by the iput package
     private PlayerInput _input;
+    // this is a struct that warps all possible inputs
+    // to pass to state execution
+    private InputState _inputState = new();
+    // all adjustable player parameters
+    private ConfigState _config = new();
+    // all checks, such as on floor and on wall checks
+    private CheckState _checkState = new();
 
-    // config vars
-    private const float WalkSpeed = 4f;
-    private const float Gravity = 0.2f;
-    private const float MaxFallSpeed = 0.1f;
-    private const float JumpForce = 0.1f;
-    private const float JumpInc = 2f;
-    
-    // for the resolution of external forces.
-    // may or may not be useful
-    private Dictionary<Object, Vector2> _constForceDict = new();
-    private Dictionary<Object, Vector2> _transientForceDict = new();
-    
-    // input variables
+    // cache the walk input for polling
     private Vector2 _walkDirection = Vector2.zero;
-    private bool _jump = false;
+
+    private PlayerState _playerState = new InAirDownState();
+    private PlayerState _nextPlayerState; 
     
     // transient state variables, updated every frame
     private enum State { OnFloor, InAir, OnWall }
@@ -45,59 +46,58 @@ public class Player : MonoBehaviour
         _input = GetComponent<PlayerInput>();
     }
 
-    private void Update()
+    private void ProcessInput()
     {
-        // process input
-        // not processing deadband, assuming the walk is 0 when joystick is not held
-        var walkVec = new Vector2(Math.Sign(_walkDirection.x) * WalkSpeed * Time.deltaTime, 0);
-        var jump = _input.actions["Jump"].triggered;
-        var jumpHeld = _input.actions["Jump"].IsPressed();
-        
+        _inputState.Jump = _input.actions["Jump"].triggered;
+        _inputState.JumpHeld = _input.actions["Jump"].IsPressed();
+        // input direction is updated by a callback
+        _inputState.WalkDirection = _walkDirection;
+    }
+
+    private void ProcessChecks()
+    {
         // Update transient state variables
         // first reset them
-        _isOnFloor = false;
-        _isOnWall = 0;
+        _checkState.IsOnFloor = false;
+        _checkState.IsOnWall = 0;
         
-        List<ContactPoint2D> contactPoints = new List<ContactPoint2D>();
+        var contactPoints = new List<ContactPoint2D>();
         _body.GetContacts(contactPoints);
         foreach (var contact in contactPoints)
         {
-            if (contact.normal == Vector2.up) { _isOnFloor = true; }
-            
+            if (contact.normal == Vector2.up) { _checkState.IsOnFloor = true; }
             // realistically the player will never touch both walls at the same time
             // this should be fine
-            if (contact.normal == Vector2.right) { _isOnWall = -1; }
-            if (contact.normal == Vector2.left) { _isOnWall = 1; }
+            if (contact.normal == Vector2.right) { _checkState.IsOnWall = -1; }
+            if (contact.normal == Vector2.left) { _checkState.IsOnWall = 1; }
         }
-        // calculate current state
-        var currentState = State.OnFloor;
-        if (_isOnFloor) { currentState = State.OnFloor; }
-        else {
-            if (_isOnWall != 0) { currentState = State.OnWall; } 
-            else { currentState = State.InAir; }
-        }
+    }
+    
+    
+    private void Update()
+    {
+        // process input, stores in _inputState
+        // the func is not processing deadband
+        // assuming the walk is exactly 0 when joystick is not used
+        ProcessInput();
+        // check for on wall and on floor
+        ProcessChecks();
 
-        switch (currentState)
+        // state machine main logic
+        if (_nextPlayerState != null)
         {
-            case State.OnFloor:
-                if (_velocity.y < 0) { _velocity.y = 0; }
-                if (jump) {
-                    _velocity.y += JumpForce;
-                    _isOnFloor = false;
-                }
-                _body.MovePosition(_body.position + _velocity + walkVec);
-                break;
-            case State.OnWall:
-                break;
-            case State.InAir:
-                // handle gravity
-                Debug.Log(_velocity);
-                _velocity += Vector2.down * (Gravity * Time.deltaTime);
-                if (_velocity.y < -MaxFallSpeed) { _velocity.y = -MaxFallSpeed; }
-                // the player can still walk in the air, as is the custom
-                _body.MovePosition(_body.position + _velocity + walkVec);
-                break;
+            _playerState = _nextPlayerState;
+            _playerState.OnEnter(this);
         }
+        
+        _nextPlayerState = _playerState.Execute(this, _inputState, _config, _checkState);
+        
+        if (_nextPlayerState != null)
+        {
+            _playerState.OnExit();
+        }
+        
+
     }
     
 
@@ -105,14 +105,6 @@ public class Player : MonoBehaviour
     public void Move(InputAction.CallbackContext context)
     {
         _walkDirection = context.ReadValue<Vector2>();
-    }
-
-    public void Jump(InputAction.CallbackContext context)
-    {
-        if (context.performed)
-        {
-            
-        }
     }
 
 }
