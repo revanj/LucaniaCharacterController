@@ -27,18 +27,15 @@ public partial class Player : MonoBehaviour
 
     // cache the walk input for polling
     private Vector2 _walkDirection = Vector2.zero;
-
     private PlayerState _playerState = new InAirDownState();
     private PlayerState _nextPlayerState; 
     
-    // transient state variables, updated every frame
-    private enum State { OnFloor, InAir, OnWall }
-    private State _state = State.OnFloor;
     private bool _isOnFloor;
     private int _isOnWall; // -1 for left, +1 for right, 0 for not on wall
-
-    // persistent state variables
-    public Vector2 _velocity;
+    
+    
+    private int _doubleJumpCount = ConfigState.DoubleJumpCap;
+    
     
     
     private void Awake()

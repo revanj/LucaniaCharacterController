@@ -23,6 +23,11 @@ public partial class Player
         public const float WallJumpLimitH = 2f;
         public const float WallJumpForceH = 2f;
         public const float WallJumpForceV = 2f;
+        public const int DoubleJumpCap = 1;
+        public const float DoubleJumpDip = 0.5f;
+        public const float DoubleJumpHeight = 1.5f;
+        public const float DoubleJumpInc = 6f;
+
     }
 
     private class CheckState
