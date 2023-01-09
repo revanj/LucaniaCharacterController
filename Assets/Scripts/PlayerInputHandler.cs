@@ -17,8 +17,12 @@ public partial class Player
     {
         public const float WalkSpeed = 4f;
         public const float Gravity = 8f;
-        public readonly float JumpInc = 8f;
-        public readonly float JumpHeight = 5f;
+        public const float JumpInc = 8f;
+        public const float JumpHeight = 2.5f;
+        public const float SlideSpeed = 2f;
+        public const float WallJumpLimitH = 2f;
+        public const float WallJumpForceH = 2f;
+        public const float WallJumpForceV = 2f;
     }
 
     private class CheckState

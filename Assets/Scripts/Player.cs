@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Mono.Cecil.Cil;
 using TMPro;
 using Unity.VisualScripting;
 using UnityEditor.Experimental.GraphView;
@@ -35,7 +36,7 @@ public partial class Player : MonoBehaviour
     private State _state = State.OnFloor;
     private bool _isOnFloor;
     private int _isOnWall; // -1 for left, +1 for right, 0 for not on wall
-    
+
     // persistent state variables
     public Vector2 _velocity;
     
@@ -49,6 +50,10 @@ public partial class Player : MonoBehaviour
     private void ProcessInput()
     {
         _inputState.Jump = _input.actions["Jump"].triggered;
+        if (_inputState.Jump == true)
+        {
+            Debug.Log("Jump pressed");
+        }
         _inputState.JumpHeld = _input.actions["Jump"].IsPressed();
         // input direction is updated by a callback
         _inputState.WalkDirection = _walkDirection;
